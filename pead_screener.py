@@ -338,12 +338,18 @@ def send_email(subject: str, body: str):
 def main():
     today = datetime.today()
     today_str = today.strftime("%Y-%m-%d")
-    yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
     send = "--email" in sys.argv
 
-    # ── 1. BUY TODAY: score yesterday's reporters ──
-    print(f"=== BUY TODAY (reported {yesterday_str}) ===")
-    finnhub_data = fetch_finnhub_earnings(yesterday_str, yesterday_str)
+    # ── Weekly lookback: Mon–Thu of the current week ──
+    # Friday run: today is Friday (weekday=4), so look back 4 days
+    lookback_days = 4
+    week_start = today - timedelta(days=lookback_days)
+    week_start_str = week_start.strftime("%Y-%m-%d")
+    yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # ── 1. BUY TODAY: score the whole week's reporters ──
+    print(f"=== WEEKLY BUY LIST (reported {week_start_str} to {yesterday_str}) ===")
+    finnhub_data = fetch_finnhub_earnings(week_start_str, yesterday_str)
     print(f"  Finnhub: {len(finnhub_data)} records")
 
     scan_symbols = list({e["symbol"] for e in finnhub_data if e.get("symbol")})
@@ -354,7 +360,7 @@ def main():
     signals = filter_signals(all_signals)
     print(f"  {len(all_signals)} scored -> {len(signals)} passed filters")
 
-    # ── 2. REPORTING TODAY: today's earnings calendar ──
+    # ── 2. REPORTING TODAY: Friday's earnings calendar ──
     print(f"\n=== REPORTING TODAY ({today_str}) ===")
     today_earnings = fetch_nasdaq_earnings(today_str)
     print(f"  Nasdaq: {len(today_earnings)} reports")
@@ -373,22 +379,20 @@ def main():
             "market_cap": info.get("market_cap"),
         })
 
-    # Highest recency first -- these are the names most likely to drift
     reporting_today.sort(key=lambda x: x.get("recency") or 0, reverse=True)
 
     # ── 3. Report ──
-    report = format_report(signals, reporting_today, yesterday_str, today_str)
+    report = format_report(signals, reporting_today, f"{week_start_str} to {yesterday_str}", today_str)
     subject = (
-        f"PEAD {today_str} "
-        f"-- {len(signals)} buy{'s' if len(signals) != 1 else ''}, "
-        f"{len(reporting_today)} reporting"
+        f"PEAD Weekly {today_str} "
+        f"-- {len(signals)} signal{'s' if len(signals) != 1 else ''}, "
+        f"{len(reporting_today)} reporting today"
     )
 
     if send:
         send_email(subject, report)
     else:
         print(f"\n{report}")
-
 
 if __name__ == "__main__":
     main()

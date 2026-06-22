@@ -3,7 +3,7 @@ name: PEAD Screener
 on:
   schedule:
     # 7:00 AM ET (11:00 UTC) weekdays -- before market open
-    - cron: "0 11 * * 1-5"
+    - cron: "0 11 * * 5"
   workflow_dispatch:  # manual trigger
 
 jobs:
